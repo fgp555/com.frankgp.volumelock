@@ -3,16 +3,19 @@ package com.frankgp.volumelock
 import android.content.Context
 import android.media.AudioManager
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.frankgp.volumelock.ui.theme.FGPVolumeLockTheme
@@ -50,63 +53,197 @@ fun VolumeOnlyDialog(
         audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()
     }
 
+    // Detect if music/media is currently active on the device
+    var isPlaying by remember {
+        mutableStateOf(audioManager.isMusicActive)
+    }
+
     fun updateVolume(newVolume: Float) {
         val intVol = newVolume.toInt()
         audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, intVol, 0)
         currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat()
     }
 
+    fun sendMediaButton(keyCode: Int) {
+        val downEvent = KeyEvent(KeyEvent.ACTION_DOWN, keyCode)
+        val upEvent = KeyEvent(KeyEvent.ACTION_UP, keyCode)
+        audioManager.dispatchMediaKeyEvent(downEvent)
+        audioManager.dispatchMediaKeyEvent(upEvent)
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = MaterialTheme.shapes.extraLarge,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         icon = {
-            Icon(
-                imageVector = when {
-                    currentVolume == 0f -> Icons.Default.VolumeMute
-                    currentVolume < maxVolume / 2 -> Icons.Default.VolumeDown
-                    else -> Icons.Default.VolumeUp
-                },
-                contentDescription = null,
-                modifier = Modifier.size(36.dp)
-            )
+            Surface(
+                modifier = Modifier.size(56.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.VolumeUp,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+            }
         },
         title = {
             Text(
-                text = "Ajustar Volumen",
+                text = "Control de Volumen",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
         },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                Text(
-                    text = "Volumen actual: ${currentVolume.toInt()} / ${maxVolume.toInt()}",
-                    style = MaterialTheme.typography.bodyLarge
+                // Volume info & Slider
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Nivel de audio",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${currentVolume.toInt()} / ${maxVolume.toInt()}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    Slider(
+                        value = currentVolume,
+                        onValueChange = { newVal ->
+                            currentVolume = newVal
+                            updateVolume(newVal)
+                        },
+                        valueRange = 0f..maxVolume,
+                        steps = maxVolume.toInt() - 1
+                    )
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 2.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
                 )
 
-                Slider(
-                    value = currentVolume,
-                    onValueChange = { newVal ->
-                        currentVolume = newVal
-                        updateVolume(newVal)
-                    },
-                    valueRange = 0f..maxVolume,
-                    steps = maxVolume.toInt() - 1
-                )
+                // Media Control Buttons (Prev, Play/Pause, Next)
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Reproducción multimedia",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
 
-                Text(
-                    text = "🔒 El botón físico está bloqueado globalmente.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    textAlign = TextAlign.Center
-                )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        FilledTonalIconButton(
+                            onClick = { sendMediaButton(KeyEvent.KEYCODE_MEDIA_PREVIOUS) },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SkipPrevious,
+                                contentDescription = "Anterior",
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        FilledIconButton(
+                            onClick = {
+                                isPlaying = !isPlaying
+                                sendMediaButton(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+                            },
+                            modifier = Modifier.size(60.dp),
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Icon(
+                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = if (isPlaying) "Pausar" else "Reproducir",
+                                modifier = Modifier.size(32.dp),
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+
+                        FilledTonalIconButton(
+                            onClick = { sendMediaButton(KeyEvent.KEYCODE_MEDIA_NEXT) },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SkipNext,
+                                contentDescription = "Siguiente",
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                }
+
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Botones físicos bloqueados",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Aceptar")
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.padding(end = 8.dp, bottom = 8.dp)
+            ) {
+                Text(
+                    text = "Cerrar",
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     )

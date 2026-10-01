@@ -15,6 +15,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -122,19 +123,25 @@ fun VolumeLockScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("FGP Volume Lock") },
+                title = {
+                    Text(
+                        "FGP Volume Lock",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Column(
             modifier = modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(24.dp),
+                .padding(20.dp),
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -143,11 +150,12 @@ fun VolumeLockScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 // Status Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.extraLarge,
                     colors = CardDefaults.cardColors(
                         containerColor = if (isVolumeDisabled) {
                             MaterialTheme.colorScheme.errorContainer
@@ -159,23 +167,36 @@ fun VolumeLockScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
+                            .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Icon(
-                            imageVector = if (isVolumeDisabled) Icons.Default.Lock else Icons.Default.LockOpen,
-                            contentDescription = null,
-                            tint = if (isVolumeDisabled) {
-                                MaterialTheme.colorScheme.onErrorContainer
+                        Surface(
+                            modifier = Modifier.size(64.dp),
+                            shape = CircleShape,
+                            color = if (isVolumeDisabled) {
+                                MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.15f)
                             } else {
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            },
-                            modifier = Modifier.size(40.dp)
-                        )
+                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.15f)
+                            }
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = if (isVolumeDisabled) Icons.Default.Lock else Icons.Default.LockOpen,
+                                    contentDescription = null,
+                                    tint = if (isVolumeDisabled) {
+                                        MaterialTheme.colorScheme.onErrorContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+                        }
+
                         Text(
                             text = if (isVolumeDisabled) "Volumen Físico Deshabilitado" else "Volumen Físico Habilitado",
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = if (isVolumeDisabled) {
                                 MaterialTheme.colorScheme.onErrorContainer
@@ -186,15 +207,15 @@ fun VolumeLockScreen(
                         )
                         Text(
                             text = if (isVolumeDisabled) {
-                                "Los botones físicos están bloqueados (Bajar volumen muestra un aviso discreto)."
+                                "Los botones físicos están protegidos. El botón bajar volumen se bloquea con aviso."
                             } else {
                                 "Los botones físicos de volumen funcionan con normalidad."
                             },
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = if (isVolumeDisabled) {
-                                MaterialTheme.colorScheme.onErrorContainer
+                                MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.85f)
                             } else {
-                                MaterialTheme.colorScheme.onPrimaryContainer
+                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
                             },
                             textAlign = TextAlign.Center
                         )
@@ -204,9 +225,10 @@ fun VolumeLockScreen(
                 // Background / Accessibility Permission Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(
                         containerColor = if (isAccessibilityEnabled) {
-                            MaterialTheme.colorScheme.surfaceVariant
+                            MaterialTheme.colorScheme.surfaceContainerHighest
                         } else {
                             MaterialTheme.colorScheme.tertiaryContainer
                         }
@@ -215,7 +237,7 @@ fun VolumeLockScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
+                            .padding(18.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -229,16 +251,16 @@ fun VolumeLockScreen(
                                 tint = if (isAccessibilityEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
                             )
                             Text(
-                                text = if (isAccessibilityEnabled) "Modo Segundo Plano (YouTube): Activo" else "Modo Segundo Plano (YouTube): Inactivo",
+                                text = if (isAccessibilityEnabled) "Segundo Plano (YouTube): Activo" else "Segundo Plano (YouTube): Inactivo",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold
                             )
                         }
                         Text(
                             text = if (isAccessibilityEnabled) {
-                                "El servicio de accesibilidad está activo. Funciona con YouTube u otras apps reproduciendo audio."
+                                "El servicio de accesibilidad opera correctamente en segundo plano."
                             } else {
-                                "Para bloquear el botón físico cuando YouTube reproduzca en segundo plano, activa el servicio de accesibilidad."
+                                "Activa el servicio de accesibilidad para proteger los botones con YouTube en segundo plano."
                             },
                             style = MaterialTheme.typography.bodySmall,
                             textAlign = TextAlign.Center
@@ -249,9 +271,13 @@ fun VolumeLockScreen(
                                     val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
                                     context.startActivity(intent)
                                 },
-                                modifier = Modifier.padding(top = 4.dp)
+                                modifier = Modifier.padding(top = 4.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.tertiary,
+                                    contentColor = MaterialTheme.colorScheme.onTertiary
+                                )
                             ) {
-                                Text("Activar Permiso en Ajustes")
+                                Text("Activar en Ajustes")
                             }
                         }
                     }
@@ -269,6 +295,7 @@ fun VolumeLockScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (isVolumeDisabled) {
                             MaterialTheme.colorScheme.primary
@@ -293,7 +320,8 @@ fun VolumeLockScreen(
                     onClick = onOpenDialog,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
+                        .height(56.dp),
+                    shape = MaterialTheme.shapes.large
                 ) {
                     Icon(
                         imageVector = Icons.Default.Tune,
@@ -302,7 +330,8 @@ fun VolumeLockScreen(
                     )
                     Text(
                         text = "Abrir Control de Volumen Manual",
-                        fontSize = 16.sp
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }

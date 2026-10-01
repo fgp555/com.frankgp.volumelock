@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Background -->
+    <path
+        android:fillColor="#6750A4"
+        android:pathData="M0,0h108v108h-108z" />
+
+    <!-- Speaker Icon -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M26,42v24h14l16,16V26L40,42H26z" />
+
+    <!-- Sound Waves -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M66,38c3,4 3,14 0,18m6,-24c6,8 6,24 0,32" />
+
+    <!-- Lock Background Circle / Badge -->
+    <path
+        android:fillColor="#FF5252"
+        android:pathData="M78,64m-16,0a16,16 0,1 1,32 0a16,16 0,1 1,-32 0" />
+
+    <!-- Lock Body Inside Badge -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M72,66h12a2,2 0,0 0,2 -2v-8a2,2 0,0 0,-2 -2h-12a2,2 0,0 0,-2 2v8a2,2 0,0 0,2 2z" />
+    <!-- Lock Shackle Inside Badge -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M75,54v-3a3,3 0,0 1,6 0v3" />
+</vector>
