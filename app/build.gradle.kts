@@ -9,6 +9,15 @@ android {
         version = release(37)
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("E:/dev/android/release.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.frankgp.volumelock"
         minSdk = 24
@@ -21,6 +30,7 @@ android {
 
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             optimization {
                 enable = false
             }

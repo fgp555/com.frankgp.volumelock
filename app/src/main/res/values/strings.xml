@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">FGP Volume Lock</string>
+    <string name="volume_button_disabled_message">Botón físico deshabilitado. Use el control en pantalla.</string>
+    <string name="accessibility_service_description">FGP Volume Lock intercepta los botones físicos de volumen cuando están bloqueados, incluso con YouTube u otras apps en segundo plano.</string>
 </resources>
