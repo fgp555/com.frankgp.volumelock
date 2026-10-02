@@ -2,8 +2,10 @@ package com.frankgp.volumelock
 
 import android.content.Context
 import android.media.AudioManager
+import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -27,6 +29,19 @@ class VolumeDialogActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Show over lock screen and turn screen on when volume up is pressed while locked
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+            )
+        }
 
         audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
 
@@ -107,7 +122,7 @@ fun VolumeOnlyDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                // Volume info & Slider
+                // Volume info & Slider with - / + buttons
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -131,15 +146,55 @@ fun VolumeOnlyDialog(
                         )
                     }
 
-                    Slider(
-                        value = currentVolume,
-                        onValueChange = { newVal ->
-                            currentVolume = newVal
-                            updateVolume(newVal)
-                        },
-                        valueRange = 0f..maxVolume,
-                        steps = maxVolume.toInt() - 1
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Volume Down (-) button
+                        FilledTonalIconButton(
+                            onClick = {
+                                val newVol = (currentVolume - 1f).coerceAtLeast(0f)
+                                currentVolume = newVol
+                                updateVolume(newVol)
+                            },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Remove,
+                                contentDescription = "Bajar volumen",
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        // Slider in the middle
+                        Slider(
+                            value = currentVolume,
+                            onValueChange = { newVal ->
+                                currentVolume = newVal
+                                updateVolume(newVal)
+                            },
+                            valueRange = 0f..maxVolume,
+                            steps = maxVolume.toInt() - 1,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        // Volume Up (+) button
+                        FilledTonalIconButton(
+                            onClick = {
+                                val newVol = (currentVolume + 1f).coerceAtMost(maxVolume)
+                                currentVolume = newVol
+                                updateVolume(newVol)
+                            },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Subir volumen",
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
                 }
 
                 HorizontalDivider(
