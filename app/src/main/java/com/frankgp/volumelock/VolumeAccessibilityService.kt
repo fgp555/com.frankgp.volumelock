@@ -21,6 +21,12 @@ class VolumeAccessibilityService : AccessibilityService() {
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
         val prefs = getSharedPreferences("volume_lock_prefs", MODE_PRIVATE)
+        val isDisabled = prefs.getBoolean("is_volume_disabled", false)
+
+        if (!isDisabled) {
+            return super.onKeyEvent(event)
+        }
+
         val disableDown = prefs.getBoolean("disable_vol_down", true)
         val disableUp = prefs.getBoolean("disable_vol_up", false)
         val triggerButton = prefs.getString("trigger_button", "UP") ?: "UP"
@@ -29,14 +35,18 @@ class VolumeAccessibilityService : AccessibilityService() {
         val isDownKey = (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)
         val isUpKey = (keyCode == KeyEvent.KEYCODE_VOLUME_UP)
 
-        if ((isDownKey && disableDown) || (isUpKey && disableUp)) {
+        // Intercept if the key is blocked OR if it is configured to trigger the modal
+        val shouldIntercept = (isDownKey && (disableDown || triggerButton == "DOWN")) ||
+                              (isUpKey && (disableUp || triggerButton == "UP"))
+
+        if (shouldIntercept) {
             if (event.action == KeyEvent.ACTION_DOWN) {
                 val shouldTrigger = (isUpKey && triggerButton == "UP") || (isDownKey && triggerButton == "DOWN")
                 if (shouldTrigger) {
                     handler.post {
                         Toast.makeText(
                             applicationContext,
-                            "Botón físico bloqueado (Use el control en pantalla)",
+                            "Control de volumen abierto",
                             Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -60,7 +70,7 @@ class VolumeAccessibilityService : AccessibilityService() {
                     }
                 }
             }
-            return true // Consume key event globally for configured volume keys
+            return true // Consume key event globally
         }
         return super.onKeyEvent(event)
     }

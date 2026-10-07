@@ -25,10 +25,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.frankgp.volumelock.ui.theme.FGPVolumeLockTheme
 
 class MainActivity : ComponentActivity() {
@@ -87,6 +92,10 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (!isVolumeDisabled) {
+            return super.onKeyDown(keyCode, event)
+        }
+
         val disableDown = sharedPreferences.getBoolean("disable_vol_down", true)
         val disableUp = sharedPreferences.getBoolean("disable_vol_up", false)
         val triggerButton = sharedPreferences.getString("trigger_button", "UP") ?: "UP"
@@ -94,7 +103,10 @@ class MainActivity : ComponentActivity() {
         val isDownKey = (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)
         val isUpKey = (keyCode == KeyEvent.KEYCODE_VOLUME_UP)
 
-        if (isVolumeDisabled && ((isDownKey && disableDown) || (isUpKey && disableUp))) {
+        val shouldIntercept = (isDownKey && (disableDown || triggerButton == "DOWN")) ||
+                              (isUpKey && (disableUp || triggerButton == "UP"))
+
+        if (shouldIntercept) {
             val shouldTrigger = (isUpKey && triggerButton == "UP") || (isDownKey && triggerButton == "DOWN")
             if (shouldTrigger) {
                 startActivity(Intent(this, VolumeDialogActivity::class.java).apply {
@@ -105,7 +117,7 @@ class MainActivity : ComponentActivity() {
                         Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
                     )
                 })
-                Toast.makeText(this, "Botón físico deshabilitado. Use el control en pantalla.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Control de volumen abierto", Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(this, "Botón de volumen desactivado", Toast.LENGTH_SHORT).show()
             }
@@ -115,12 +127,21 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
+        if (!isVolumeDisabled) {
+            return super.onKeyUp(keyCode, event)
+        }
+
         val disableDown = sharedPreferences.getBoolean("disable_vol_down", true)
         val disableUp = sharedPreferences.getBoolean("disable_vol_up", false)
+        val triggerButton = sharedPreferences.getString("trigger_button", "UP") ?: "UP"
+
         val isDownKey = (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)
         val isUpKey = (keyCode == KeyEvent.KEYCODE_VOLUME_UP)
 
-        if (isVolumeDisabled && ((isDownKey && disableDown) || (isUpKey && disableUp))) {
+        val shouldIntercept = (isDownKey && (disableDown || triggerButton == "DOWN")) ||
+                              (isUpKey && (disableUp || triggerButton == "UP"))
+
+        if (shouldIntercept) {
             return true
         }
         return super.onKeyUp(keyCode, event)
@@ -153,6 +174,19 @@ fun VolumeLockScreen(
         mutableStateOf(isAccessibilityServiceEnabled(context, VolumeAccessibilityService::class.java))
     }
 
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                isAccessibilityEnabled = isAccessibilityServiceEnabled(context, VolumeAccessibilityService::class.java)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     var disableVolDown by remember {
         mutableStateOf(sharedPreferences.getBoolean("disable_vol_down", true))
     }
@@ -161,10 +195,6 @@ fun VolumeLockScreen(
     }
     var triggerButton by remember {
         mutableStateOf(sharedPreferences.getString("trigger_button", "UP") ?: "UP")
-    }
-
-    LaunchedEffect(Unit) {
-        isAccessibilityEnabled = isAccessibilityServiceEnabled(context, VolumeAccessibilityService::class.java)
     }
 
     Scaffold(
@@ -193,9 +223,11 @@ fun VolumeLockScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Status Card
+            // Status Card (Clickable to toggle protection)
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleDisable(!isVolumeDisabled) },
                 shape = MaterialTheme.shapes.extraLarge,
                 colors = CardDefaults.cardColors(
                     containerColor = if (isVolumeDisabled) {
@@ -248,9 +280,9 @@ fun VolumeLockScreen(
                     )
                     Text(
                         text = if (isVolumeDisabled) {
-                            "Los botones seleccionados están bloqueados y muestran la barra de control en pantalla/bloqueo."
+                            "Toca aquí para desactivar la protección."
                         } else {
-                            "Los botones físicos funcionan con normalidad."
+                            "Toca aquí para activar la protección."
                         },
                         style = MaterialTheme.typography.bodyMedium,
                         color = if (isVolumeDisabled) {
@@ -263,9 +295,31 @@ fun VolumeLockScreen(
                 }
             }
 
+            // Manual Control Button in second place
+            OutlinedButton(
+                onClick = onOpenDialog,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = MaterialTheme.shapes.large
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Tune,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+                Text(
+                    text = "Abrir Control de Volumen Manual",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
             // Configuration Card: Select which buttons to disable and which triggers modal
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .alpha(if (isVolumeDisabled) 1f else 0.5f),
                 shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
             ) {
@@ -273,13 +327,28 @@ fun VolumeLockScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(
-                        text = "⚙️ Configuración de Botones",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "⚙️ Configuración de Botones",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (!isVolumeDisabled) {
+                            Text(
+                                text = "(Activa la protección)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(2.dp))
 
                     Text(
                         text = "1. Selecciona qué botones bloquear:",
@@ -290,44 +359,67 @@ fun VolumeLockScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .height(36.dp)
                             .clickable {
-                                disableVolDown = !disableVolDown
-                                sharedPreferences.edit().putBoolean("disable_vol_down", disableVolDown).apply()
-                            },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(
-                            checked = disableVolDown,
-                            onCheckedChange = { checked ->
-                                disableVolDown = checked
-                                sharedPreferences.edit().putBoolean("disable_vol_down", checked).apply()
-                            }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Bloquear Bajar Volumen (-)", style = MaterialTheme.typography.bodyMedium)
-                    }
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                disableVolUp = !disableVolUp
-                                sharedPreferences.edit().putBoolean("disable_vol_up", disableVolUp).apply()
+                                if (isVolumeDisabled) {
+                                    disableVolUp = !disableVolUp
+                                    sharedPreferences.edit().putBoolean("disable_vol_up", disableVolUp).apply()
+                                } else {
+                                    Toast.makeText(context, "Activa la protección primero", Toast.LENGTH_SHORT).show()
+                                }
                             },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
                             checked = disableVolUp,
                             onCheckedChange = { checked ->
-                                disableVolUp = checked
-                                sharedPreferences.edit().putBoolean("disable_vol_up", checked).apply()
-                            }
+                                if (isVolumeDisabled) {
+                                    disableVolUp = checked
+                                    sharedPreferences.edit().putBoolean("disable_vol_up", checked).apply()
+                                } else {
+                                    Toast.makeText(context, "Activa la protección primero", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.scale(0.85f)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(text = "Bloquear Subir Volumen (+)", style = MaterialTheme.typography.bodyMedium)
                     }
 
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(36.dp)
+                            .clickable {
+                                if (isVolumeDisabled) {
+                                    disableVolDown = !disableVolDown
+                                    sharedPreferences.edit().putBoolean("disable_vol_down", disableVolDown).apply()
+                                } else {
+                                    Toast.makeText(context, "Activa la protección primero", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = disableVolDown,
+                            onCheckedChange = { checked ->
+                                if (isVolumeDisabled) {
+                                    disableVolDown = checked
+                                    sharedPreferences.edit().putBoolean("disable_vol_down", checked).apply()
+                                } else {
+                                    Toast.makeText(context, "Activa la protección primero", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.scale(0.85f)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = "Bloquear Bajar Volumen (-)", style = MaterialTheme.typography.bodyMedium)
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
                         text = "2. Botón que abrirá el control flotante:",
@@ -343,20 +435,30 @@ fun VolumeLockScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .height(36.dp)
                                 .clickable {
-                                    triggerButton = key
-                                    sharedPreferences.edit().putString("trigger_button", key).apply()
+                                    if (isVolumeDisabled) {
+                                        triggerButton = key
+                                        sharedPreferences.edit().putString("trigger_button", key).apply()
+                                    } else {
+                                        Toast.makeText(context, "Activa la protección primero", Toast.LENGTH_SHORT).show()
+                                    }
                                 },
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
                                 selected = (triggerButton == key),
                                 onClick = {
-                                    triggerButton = key
-                                    sharedPreferences.edit().putString("trigger_button", key).apply()
-                                }
+                                    if (isVolumeDisabled) {
+                                        triggerButton = key
+                                        sharedPreferences.edit().putString("trigger_button", key).apply()
+                                    } else {
+                                        Toast.makeText(context, "Activa la protección primero", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier.scale(0.85f)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(text = label, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
@@ -392,7 +494,7 @@ fun VolumeLockScreen(
                             tint = if (isAccessibilityEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary
                         )
                         Text(
-                            text = if (isAccessibilityEnabled) "Segundo Plano (YouTube): Activo" else "Segundo Plano (YouTube): Inactivo",
+                            text = if (isAccessibilityEnabled) "Segundo Plano: Activo" else "Segundo Plano: Inactivo",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -401,7 +503,7 @@ fun VolumeLockScreen(
                         text = if (isAccessibilityEnabled) {
                             "El servicio de accesibilidad opera correctamente en segundo plano."
                         } else {
-                            "Activa el servicio de accesibilidad para proteger los botones con YouTube en segundo plano."
+                            "Activa el servicio de accesibilidad para proteger los botones en segundo plano."
                         },
                         style = MaterialTheme.typography.bodySmall,
                         textAlign = TextAlign.Center
@@ -421,58 +523,6 @@ fun VolumeLockScreen(
                             Text("Activar en Ajustes")
                         }
                     }
-                }
-            }
-
-            // Action Buttons
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Button(
-                    onClick = { onToggleDisable(!isVolumeDisabled) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = MaterialTheme.shapes.large,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isVolumeDisabled) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.error
-                        }
-                    )
-                ) {
-                    Icon(
-                        imageVector = if (isVolumeDisabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
-                        contentDescription = null,
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
-                    Text(
-                        text = if (isVolumeDisabled) "Habilitar Protección" else "Deshabilitar Protección",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                OutlinedButton(
-                    onClick = onOpenDialog,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = MaterialTheme.shapes.large
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Tune,
-                        contentDescription = null,
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
-                    Text(
-                        text = "Abrir Control de Volumen Manual",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
-                    )
                 }
             }
 
