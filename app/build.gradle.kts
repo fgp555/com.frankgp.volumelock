@@ -9,6 +9,21 @@ android {
         version = release(37)
     }
 
+    defaultConfig {
+        applicationId = "com.frankgp.volumelock"
+        minSdk = 24
+        targetSdk = 37
+        versionCode = 5
+        versionName = "26.10.4"
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    /* 
+    https://play.google.com/console/u/0/developers/9004578905216647982/app/4971977502201621406/tracks/internal-testing
+    adb shell am start -a android.intent.action.VIEW -d "market://details?id=com.frankgp.volumelock" 
+    */
+
     signingConfigs {
         create("release") {
             storeFile = file("E:/dev/android/release.keystore")
@@ -16,16 +31,6 @@ android {
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
-    }
-
-    defaultConfig {
-        applicationId = "com.frankgp.volumelock"
-        minSdk = 24
-        targetSdk = 37
-        versionCode = 3
-        versionName = "1.3"
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -36,6 +41,7 @@ android {
             }
         }
     }
+    
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11

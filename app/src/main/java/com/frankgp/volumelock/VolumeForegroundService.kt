@@ -106,17 +106,15 @@ class VolumeForegroundService : Service() {
                 PendingIntent.getService(this@VolumeForegroundService, 0, openIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
             )
 
-            val downIntent = Intent(this@VolumeForegroundService, VolumeForegroundService::class.java).apply {
-                action = ACTION_VOL_DOWN
-            }
+            val downIntent = Intent(this@VolumeForegroundService, VolumeForegroundService::class.java)
+                .setAction(ACTION_VOL_DOWN)
             setOnClickPendingIntent(
                 R.id.btn_down,
                 PendingIntent.getService(this@VolumeForegroundService, 1, downIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
             )
 
-            val upIntent = Intent(this@VolumeForegroundService, VolumeForegroundService::class.java).apply {
-                action = ACTION_VOL_UP
-            }
+            val upIntent = Intent(this@VolumeForegroundService, VolumeForegroundService::class.java)
+                .setAction(ACTION_VOL_UP)
             setOnClickPendingIntent(
                 R.id.btn_up,
                 PendingIntent.getService(this@VolumeForegroundService, 2, upIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
@@ -132,7 +130,7 @@ class VolumeForegroundService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_app_icon)
+            .setSmallIcon(R.drawable.ic_stat_volume) // Proper monochrome icon for status bar / notifications
             .setCustomContentView(remoteViews)
             .setCustomBigContentView(remoteViews)
             .setContentIntent(openPendingIntent)
