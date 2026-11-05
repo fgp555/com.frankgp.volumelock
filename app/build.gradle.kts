@@ -14,8 +14,8 @@ android {
         applicationId = "com.frankgp.volumelock"
         minSdk = 24
         targetSdk = 37
-        versionCode = 5
-        versionName = "26.10.4"
+        versionCode = 8
+        versionName = "26.10.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

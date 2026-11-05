@@ -74,9 +74,9 @@ fun VolumeOnlyDialog(
     }
 
     fun updateVolume(newVolume: Float) {
-        val intVol = newVolume.toInt()
-        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, intVol, 0)
-        currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat()
+        currentVolume = VolumeForegroundService
+            .setManualMediaVolume(audioManager, newVolume.toInt())
+            .toFloat()
     }
 
     fun sendMediaButton(keyCode: Int) {

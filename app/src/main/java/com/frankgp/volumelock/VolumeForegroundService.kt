@@ -1,17 +1,22 @@
 package com.frankgp.volumelock
 
+import android.app.KeyguardManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.media.AudioManager
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 
 class VolumeForegroundService : Service() {
 
@@ -22,6 +27,18 @@ class VolumeForegroundService : Service() {
         const val ACTION_VOL_UP = "com.frankgp.volumelock.ACTION_VOL_UP"
         const val ACTION_VOL_DOWN = "com.frankgp.volumelock.ACTION_VOL_DOWN"
         const val ACTION_OPEN_DIALOG = "com.frankgp.volumelock.ACTION_OPEN_DIALOG"
+        // Android's protected volume broadcast is not part of the public SDK.
+        private const val ACTION_VOLUME_CHANGED = "android.media.VOLUME_CHANGED_ACTION"
+        private const val EXTRA_STREAM_TYPE = "android.media.EXTRA_VOLUME_STREAM_TYPE"
+
+        private var acceptedMediaVolume = 0
+
+        internal fun setManualMediaVolume(audioManager: AudioManager, volume: Int): Int {
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0)
+            val appliedVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+            acceptedMediaVolume = appliedVolume
+            return appliedVolume
+        }
 
         fun startService(context: Context) {
             val intent = Intent(context, VolumeForegroundService::class.java)
@@ -38,23 +55,63 @@ class VolumeForegroundService : Service() {
         }
     }
 
+    private val audioManager by lazy { getSystemService(AudioManager::class.java)!! }
+    private val keyguardManager by lazy { getSystemService(KeyguardManager::class.java)!! }
+    private val powerManager by lazy { getSystemService(PowerManager::class.java)!! }
+    private val prefs by lazy { getSharedPreferences("volume_lock_prefs", MODE_PRIVATE) }
+
+    private val volumeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action != ACTION_VOLUME_CHANGED ||
+                intent.getIntExtra(EXTRA_STREAM_TYPE, -1) != AudioManager.STREAM_MUSIC
+            ) return
+
+            val current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+            val shouldProtect = prefs.getBoolean("is_volume_disabled", false) &&
+                (!powerManager.isInteractive || keyguardManager.isKeyguardLocked)
+            val blockedDirection =
+                (current < acceptedMediaVolume && prefs.getBoolean("disable_vol_down", true)) ||
+                (current > acceptedMediaVolume && prefs.getBoolean("disable_vol_up", false))
+
+            if (shouldProtect && blockedDirection) {
+                setManualMediaVolume(audioManager, acceptedMediaVolume)
+            } else {
+                acceptedMediaVolume = current
+            }
+
+            getSystemService(NotificationManager::class.java)
+                ?.notify(NOTIFICATION_ID, buildNotification(audioManager))
+        }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        acceptedMediaVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+        ContextCompat.registerReceiver(
+            this, volumeReceiver, IntentFilter(ACTION_VOLUME_CHANGED), ContextCompat.RECEIVER_EXPORTED
+        )
+    }
+
+    override fun onDestroy() {
+        unregisterReceiver(volumeReceiver)
+        super.onDestroy()
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
-
         when (intent?.action) {
             ACTION_VOL_UP -> {
                 val current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                 val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                 if (current < max) {
-                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, current + 1, 0)
+                    setManualMediaVolume(audioManager, current + 1)
                 }
             }
             ACTION_VOL_DOWN -> {
                 val current = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                 if (current > 0) {
-                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, current - 1, 0)
+                    setManualMediaVolume(audioManager, current - 1)
                 }
             }
             ACTION_OPEN_DIALOG -> {
